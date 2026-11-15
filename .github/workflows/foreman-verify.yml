@@ -1,0 +1,59 @@
+name: Foreman Verify
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    name: discover criteria
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.list.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: list
+        run: node foreman/list-criteria.mjs >> "$GITHUB_OUTPUT"
+
+  verify:
+    needs: discover
+    # The job name carries the criterion id and hash so the public jobs API exposes
+    # per-criterion PASS/FAIL tied to a specific criterion version.
+    name: verify ${{ matrix.id }} criterion:${{ matrix.hash12 }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.discover.outputs.matrix) }}
+    env:
+      CI: "true"
+      FOREMAN_CRITERION_ID: ${{ matrix.id }}
+      FOREMAN_TEST_FILE: ${{ matrix.file }}
+      FOREMAN_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run criterion test
+        run: npx playwright test -- "$FOREMAN_TEST_FILE"
+      - name: Job summary
+        if: always()
+        run: node foreman/summary.mjs >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload screenshots, video and trace
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: foreman-${{ matrix.id }}-${{ matrix.hash12 }}
+          path: |
+            test-results/
+            playwright-report/
+            foreman-report/
+          retention-days: 30
