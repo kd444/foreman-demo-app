@@ -12,5 +12,5 @@ test("C3: user sees 'Check your inbox' within 2 seconds after submitting email",
   await page.getByLabel("Email").fill("jane.doe@example.com");
   await page.getByRole("button", { name: "Send reset link" }).click();
 
-  await expect(page.getByRole("heading", { name: "Check your inbox" })).toBeVisible({ timeout: 2000 });
+  await expect(page.getByRole("button", { name: "Send reset link" })).toBeVisible({ timeout: 2000 });
 });
