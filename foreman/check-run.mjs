@@ -72,11 +72,15 @@ try {
     const jm = j.name.match(/^verify (C\d+) criterion:([0-9a-f]{12})$/);
     return jm && criterionHash.startsWith(jm[2]);
   });
-  if (!job)
-    finish("REJECTED", "no job in this run tested this criterion version (criterion text changed or test not regenerated)", {
-      ...details,
-      jobs: jobs.map((j) => `${j.name}: ${j.conclusion}`),
-    });
+  if (!job) {
+    details.jobs = jobs.map((j) => `${j.name}: ${j.conclusion}`);
+    const ranOtherVersion = jobs.some(
+      (j) => /^verify C\d+ criterion:[0-9a-f]{12}$/.test(j.name) && ["success", "failure"].includes(j.conclusion),
+    );
+    if (ranOtherVersion)
+      finish("REJECTED", "run tested a different criterion version (criterion text changed or test not regenerated)", details);
+    finish("UNVERIFIED", `criterion tests never ran (run concluded ${run.conclusion}; infrastructure or setup failure, not a test result)`, details);
+  }
   const criterionId = job.name.split(" ")[1];
   Object.assign(details, { criterionId, job: job.name, jobConclusion: job.conclusion, jobUrl: job.html_url });
 
