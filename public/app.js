@@ -17,7 +17,7 @@ form.addEventListener("submit", async (event) => {
       body: JSON.stringify({ email: emailInput.value.trim() }),
     });
     const body = await res.json();
-    if (res.ok && body.ok) {
+    if (res.status === 201 && body.ok) {
       sentTo.textContent = emailInput.value.trim();
       form.hidden = true;
       confirmation.hidden = false;
